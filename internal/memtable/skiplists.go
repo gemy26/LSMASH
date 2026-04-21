@@ -8,7 +8,7 @@ import (
 
 type Value struct {
 	data      int
-	tompstone bool
+	tombstone bool
 }
 type Node struct {
 	key  int
@@ -54,7 +54,7 @@ func (s *SkipList) Search(key int) (int, bool) {
 	}
 	candidate := node.next[0]
 	if candidate != nil && candidate.key == key {
-		if candidate.val.tompstone {
+		if candidate.val.tombstone {
 			return 0, false
 		}
 		return candidate.val.data, true
@@ -125,7 +125,7 @@ func (s *SkipList) Traverse() {
 		fmt.Printf("L%d: HEAD", l)
 		for _, n := range nodes {
 			if len(n.next) > l {
-				if n.val.tompstone == true {
+				if n.val.tombstone == true {
 					fmt.Print("(x deleted) ")
 				}
 				fmt.Print(nodeSlot(n.key))
@@ -145,7 +145,7 @@ func (s *SkipList) Delete(key int) {
 			node = node.next[l]
 		}
 		if node.key == key {
-			node.val.tompstone = true
+			node.val.tombstone = true
 		}
 	}
 }
@@ -158,7 +158,7 @@ func (s *SkipList) Scan(start, end int) []Entry {
 		node = node.next[0]
 	}
 	for ; node != nil && node.key >= start && node.key <= end; node = node.next[0] {
-		if !node.val.tompstone {
+		if !node.val.tombstone {
 			data = append(data, Entry{Key: node.key, Val: node.val.data})
 		}
 	}
