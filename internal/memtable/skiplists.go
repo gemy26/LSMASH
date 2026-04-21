@@ -164,3 +164,16 @@ func (s *SkipList) Scan(start, end int) []Entry {
 	}
 	return data
 }
+
+func (s *SkipList) Iterator() *Iterator {
+	node := s.head.next[0]
+
+	// skip tombstones at the beginning
+	for node != nil && node.val.tombstone {
+		node = node.next[0]
+	}
+
+	return &Iterator{
+		curr: node,
+	}
+}
