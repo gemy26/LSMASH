@@ -54,6 +54,9 @@ func (s *SkipList) Search(key int) (int, bool) {
 	}
 	candidate := node.next[0]
 	if candidate != nil && candidate.key == key {
+		if candidate.val.tompstone {
+			return 0, false
+		}
 		return candidate.val.data, true
 	}
 	return 0, false
@@ -122,7 +125,7 @@ func (s *SkipList) Traverse() {
 		fmt.Printf("L%d: HEAD", l)
 		for _, n := range nodes {
 			if len(n.next) > l {
-				if n.val.tompstone == false {
+				if n.val.tompstone == true {
 					fmt.Print("(x deleted) ")
 				}
 				fmt.Print(nodeSlot(n.key))

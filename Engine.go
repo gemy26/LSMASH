@@ -19,15 +19,17 @@ func (e *Engine) Insert(key int, value int) {
 	e.memtable.SkipList.Insert(key, value)
 	e.memtable.Size += 16
 }
-func (e *Engine) Find(key int) int {
+func (e *Engine) Get(key int) int {
 	// first try to get it from memtable the active one and immutables
 	// if not found search in the
 	// sstables in all level in order from 1 -> n
 	if val, ok := e.memtable.SkipList.Search(key); ok {
 		return val
 	}
-	if val, ok := e.memtable.SkipList.Search(key); ok {
-		return val
+	for _, immutable := range e.immutable {
+		if val, ok := immutable.SkipList.Search(key); ok {
+			return val
+		}
 	}
 	// 3. TODO: search SSTables level 0 → n
 	return -1
