@@ -175,5 +175,6 @@ func (s *SkipList) Iterator() *Iterator {
 
 	return &Iterator{
 		curr: node,
+		end:  100000, //TODO: add new attribute MaxKey
 	}
 }

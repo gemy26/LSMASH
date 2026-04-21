@@ -14,7 +14,9 @@ func (i *Iterator) Next() bool {
 	for i.curr != nil && i.curr.val.tombstone == true { //skip all deleted nodes
 		i.curr = i.curr.next[0]
 	}
-
+	if i.curr == nil {
+		return false
+	}
 	if i.curr != nil && i.curr.key > i.end {
 		i.curr = nil
 		return false

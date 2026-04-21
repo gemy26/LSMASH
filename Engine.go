@@ -26,9 +26,15 @@ func (e *Engine) Get(key int) int {
 	if val, ok := e.memtable.SkipList.Search(key); ok {
 		return val
 	}
-	for _, immutable := range e.immutable {
-		if val, ok := immutable.SkipList.Search(key); ok {
-			return val
+
+	iterators := make([]*memTable.Iterator, 0, len(e.immutable))
+	for _, imm := range e.immutable {
+		iterators = append(iterators, imm.SkipList.Iterator())
+	}
+	merged := memTable.Merge(iterators)
+	for _, e := range merged {
+		if e.Key == key {
+			return e.Val
 		}
 	}
 	// 3. TODO: search SSTables level 0 → n
