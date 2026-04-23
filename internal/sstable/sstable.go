@@ -1,0 +1,141 @@
+package sstable
+
+import (
+	"fmt"
+	"lsmash/config"
+	memTable "lsmash/internal/memtable"
+	"os"
+	"path/filepath"
+	"strings"
+)
+
+type SSTableHeader struct {
+	MinKey      int64
+	MaxKey      int64
+	EntryCount  uint32
+	BloomSize   uint32
+	BloomOffset uint32
+}
+
+type SSTable struct {
+	header   SSTableHeader
+	filePath string
+	fileName string
+	bloom    *BloomFilter
+	file     *os.File
+}
+
+func NewSSTable(header SSTableHeader, bloomFilter *BloomFilter, level int8) (*SSTable, error) {
+	fileName := newSSTableFileName(level)
+	cfg := config.DefaultConfig()
+	fullPath := filepath.Join(cfg.WorkingDir, fileName)
+
+	file, err := os.Create(fullPath)
+
+	if err != nil {
+		return nil, err
+	}
+	return &SSTable{
+		header:   header,
+		filePath: cfg.WorkingDir,
+		fileName: fileName,
+		bloom:    bloomFilter,
+		file:     file,
+	}, nil
+}
+
+func newSSTableFileName(level int8) string {
+	cfg := config.DefaultConfig()
+	dir := cfg.WorkingDir
+	prefix := fmt.Sprintf("l%d_", level)
+	count := 0
+	entries, _ := os.ReadDir(dir)
+	for _, e := range entries {
+		if strings.HasPrefix(e.Name(), prefix) && strings.HasSuffix(e.Name(), ".lsm") {
+			count++
+		}
+	}
+	return fmt.Sprintf("l%d_%d.lsm", level, count)
+}
+
+func (s *SSTable) Get(key int64) (int64, bool) {
+	if key < s.header.MinKey || key > s.header.MaxKey {
+		return 0, false
+	}
+	if !s.bloom.Contains(make([]byte, key)) {
+		return 0, false
+	}
+
+	data := s.readEntry()
+	l, r := 0, len(data)-1
+	idx := -1
+	for r >= l {
+		mid := (l + r) / 2
+		if data[mid].Key == key {
+			idx = mid
+			break
+		} else if data[mid].Key < key {
+			l = mid + 1
+		} else {
+			r = mid - 1
+		}
+	}
+	if idx == -1 {
+		return 0, false
+	}
+
+	if data[idx].Tombstoned {
+		return 0, false
+	}
+
+	return data[idx].Val, true
+}
+
+func FlushToSSTable(memtable *memTable.MemTable) (*SSTable, error) {
+	entries := memtable.SkipList.ScanAll()
+	if len(entries) == 0 {
+		return nil, fmt.Errorf("cannot flush an empty memtable")
+	}
+	minKey := entries[0].Key
+	maxKey := entries[len(entries)-1].Key
+	m, k := calculateParams(uint64(len(entries)+1), .1)
+	bf := NewBloomFilter(m, k)
+
+	for _, e := range entries {
+		bf.Add(make([]byte, e.Key))
+	}
+
+	bloomBytes := uint32(len(bf.bitset))
+	dataSize := uint32(len(entries)) * uint32(entrySize)
+	bloomOffset := uint32(headerSize) + dataSize
+	totalSize := bloomOffset + bloomBytes
+
+	limit := config.DefaultConfig().SstableFileSizeLimit
+	if int64(totalSize) > limit {
+		return nil, fmt.Errorf("sstable size %d exceeds file size limit %d", totalSize, limit)
+	}
+
+	header := SSTableHeader{
+		EntryCount:  uint32(len(entries)),
+		MinKey:      int64(minKey),
+		MaxKey:      int64(maxKey),
+		BloomSize:   bloomBytes,
+		BloomOffset: bloomOffset,
+	}
+	sst, err := NewSSTable(header, bf, 0)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := sst.writeHeader(); err != nil {
+		return nil, fmt.Errorf("writeHeader: %w", err)
+	}
+	if err := sst.writeEntry(entries); err != nil {
+		return nil, fmt.Errorf("writeEntry: %w", err)
+	}
+	if err := sst.writeBloom(); err != nil {
+		return nil, fmt.Errorf("writeBloom: %w", err)
+	}
+
+	return sst, nil
+}
