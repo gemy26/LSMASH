@@ -1,25 +1,22 @@
 package sstable
 
 import (
-	"hash/maphash"
+	"hash/fnv"
 	"math"
 )
 
 type BloomFilter struct {
-	m            uint64 //expected size
-	k            uint64
-	bitset       []byte
-	Count        int //number of elements added
-	seed1, seed2 maphash.Seed
+	m      uint64 // number of bits
+	k      uint64 // number of hash functions
+	bitset []byte
+	Count  int64 // number of elements added
 }
 
 func NewBloomFilter(m uint64, k uint64) *BloomFilter {
 	return &BloomFilter{
 		m:      m,
 		k:      k,
-		bitset: make([]byte, m/8), //each element is byte = 8bit and we can use each bit of those bits
-		seed1:  maphash.MakeSeed(),
-		seed2:  maphash.MakeSeed(),
+		bitset: make([]byte, (m+7)/8), // each element is byte = 8bit
 	}
 }
 
@@ -33,9 +30,16 @@ func calculateParams(n uint64, p float64) (m uint64, k uint64) {
 	k = uint64(math.Ceil(mdivn * ln2))
 	return
 }
+
+func (bf *BloomFilter) hash(item []byte) uint64 {
+	h := fnv.New64()
+	h.Write(item)
+	return h.Sum64()
+}
+
 func (bf *BloomFilter) Add(item []byte) {
-	h1 := maphash.Bytes(bf.seed1, item)
-	h2 := maphash.Bytes(bf.seed2, item)
+	h1 := bf.hash(item)
+	h2 := bf.hash(item)
 
 	for i := uint64(0); i < bf.k; i++ {
 		pos := (h1 + i*h2) % bf.m
@@ -43,11 +47,12 @@ func (bf *BloomFilter) Add(item []byte) {
 		bitIndex := pos % 8
 		bf.bitset[byteIndex] |= 1 << bitIndex
 	}
+	bf.Count++
 }
 
 func (bf *BloomFilter) Contains(item []byte) bool {
-	h1 := maphash.Bytes(bf.seed1, item)
-	h2 := maphash.Bytes(bf.seed2, item)
+	h1 := bf.hash(item)
+	h2 := bf.hash(item)
 	for i := uint64(0); i < bf.k; i++ {
 		pos := (h1 + i*h2) % bf.m
 		if !bf.isSet(pos) {
