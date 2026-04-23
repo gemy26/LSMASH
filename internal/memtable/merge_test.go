@@ -18,7 +18,7 @@ func TestMergeIterators(t *testing.T) {
 		t.Fatalf("expected 6 entries, got %d", len(merged))
 	}
 	for i, entry := range merged {
-		expectedKey := i + 1
+		expectedKey := int64(i + 1)
 		expectedVal := expectedKey * 10
 		if entry.Key != expectedKey || entry.Val != expectedVal {
 			t.Fatalf("unexpected entry at index %d: %+v", i, entry)

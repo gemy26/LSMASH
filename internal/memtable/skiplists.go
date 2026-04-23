@@ -7,18 +7,19 @@ import (
 )
 
 type Value struct {
-	data      int
+	data      int64
 	tombstone bool
 }
 type Node struct {
-	key  int
+	key  int64
 	val  Value
 	next []*Node // next[i] is the forward pointer at level i
 }
 
 type Entry struct {
-	Key int
-	Val int
+	Key        int64
+	Val        int64
+	Tombstoned bool
 }
 
 type SkipList struct {
@@ -45,7 +46,7 @@ func (s *SkipList) randomLevel() int {
 	return level
 }
 
-func (s *SkipList) Search(key int) (int, bool) {
+func (s *SkipList) Search(key int64) (int64, bool) {
 	node := s.head
 	for l := s.levels - 1; l >= 0; l-- {
 		for node.next[l] != nil && node.next[l].key < key {
@@ -62,7 +63,7 @@ func (s *SkipList) Search(key int) (int, bool) {
 	return 0, false
 }
 
-func (s *SkipList) Insert(key int, val int) {
+func (s *SkipList) Insert(key int64, val int64) {
 	node := s.head
 	update := make([]*Node, s.maxLevels)
 
@@ -128,7 +129,7 @@ func (s *SkipList) Traverse() {
 				if n.val.tombstone == true {
 					fmt.Print("(x deleted) ")
 				}
-				fmt.Print(nodeSlot(n.key))
+				fmt.Print(nodeSlot(int(n.key)))
 			} else {
 				fmt.Print(dashSlot)
 			}
@@ -138,19 +139,19 @@ func (s *SkipList) Traverse() {
 	fmt.Println()
 }
 
-func (s *SkipList) Delete(key int) {
+func (s *SkipList) Delete(key int64) {
 	node := s.head
 	for l := s.levels - 1; l >= 0; l-- {
 		for node.next[l] != nil && node.next[l].key < key {
 			node = node.next[l]
 		}
-		if node.key == key {
-			node.val.tombstone = true
+		if node.next[l] != nil && node.next[l].key == key {
+			node.next[l].val.tombstone = true
 		}
 	}
 }
 
-func (s *SkipList) Scan(start, end int) []Entry {
+func (s *SkipList) Scan(start, end int64) []Entry { //Exculte tombstone
 	node := s.head.next[0]
 	data := []Entry{}
 
@@ -159,22 +160,25 @@ func (s *SkipList) Scan(start, end int) []Entry {
 	}
 	for ; node != nil && node.key >= start && node.key <= end; node = node.next[0] {
 		if !node.val.tombstone {
-			data = append(data, Entry{Key: node.key, Val: node.val.data})
+			data = append(data, Entry{Key: node.key, Val: node.val.data, Tombstoned: node.val.tombstone})
 		}
 	}
 	return data
 }
 
-func (s *SkipList) Iterator() *Iterator {
+func (s *SkipList) ScanAll() []Entry {
 	node := s.head.next[0]
-
-	// skip tombstones at the beginning
-	for node != nil && node.val.tombstone {
+	var data []Entry
+	for node != nil {
+		data = append(data, Entry{Key: node.key, Val: node.val.data, Tombstoned: node.val.tombstone})
 		node = node.next[0]
 	}
+	return data
+}
 
+func (s *SkipList) Iterator() *Iterator {
 	return &Iterator{
-		curr: node,
+		curr: s.head.next[0],
 		end:  100000, //TODO: add new attribute MaxKey
 	}
 }

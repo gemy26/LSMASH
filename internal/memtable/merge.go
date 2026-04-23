@@ -22,7 +22,7 @@ func Merge(iterators []*Iterator) []Entry {
 	h := &IteratorHeap{}
 	heap.Init(h)
 	list := make([]Entry, 0)
-	seen := make(map[int]bool)
+	seen := make(map[int64]bool)
 	for _, it := range iterators {
 		if it.Valid() {
 			heap.Push(h, it)

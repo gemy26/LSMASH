@@ -2,7 +2,7 @@ package memTable
 
 import "testing"
 
-func markTombstone(s *SkipList, key int) {
+func markTombstone(s *SkipList, key int64) {
 	node := s.head.next[0]
 	for node != nil && node.key < key {
 		node = node.next[0]
@@ -31,13 +31,13 @@ func TestSkipListInsertSearch(t *testing.T) {
 
 	markTombstone(s, 1)
 	if _, ok := s.Search(1); ok {
-		t.Fatalf("expected tombstoned key to be absent")
+		t.Fatalf("expected Tombstoned key to be absent")
 	}
 }
 
 func TestSkipListScan(t *testing.T) {
 	s := NewSkipList(5, 0.5)
-	for i := 1; i <= 5; i++ {
+	for i := int64(1); i <= 5; i++ {
 		s.Insert(i, i*10)
 	}
 	markTombstone(s, 3)
@@ -54,29 +54,25 @@ func TestSkipListScan(t *testing.T) {
 	}
 }
 
-func TestSkipListIteratorSkipsTombstones(t *testing.T) {
+func TestSkipListIteratorIncludesTombstones(t *testing.T) {
 	s := NewSkipList(5, 0.5)
-	for i := 1; i <= 5; i++ {
+	for i := int64(1); i <= 5; i++ {
 		s.Insert(i, i*10)
 	}
 	markTombstone(s, 2)
 	markTombstone(s, 4)
 
 	it := s.Iterator()
-	if !it.Valid() {
-		t.Fatalf("expected iterator to be valid at start")
-	}
-
 	entries := make([]Entry, 0, 5)
 	entries = append(entries, it.Entry())
 	for it.Next() {
 		entries = append(entries, it.Entry())
 	}
 
-	if len(entries) != 3 {
-		t.Fatalf("expected 3 entries, got %d", len(entries))
+	if len(entries) != 5 {
+		t.Fatalf("expected 5 entries, got %d", len(entries))
 	}
-	if entries[0].Key != 1 || entries[1].Key != 3 || entries[2].Key != 5 {
-		t.Fatalf("unexpected iterator keys: %+v", entries)
+	if !entries[1].Tombstoned || !entries[3].Tombstoned {
+		t.Fatal("expected keys 2 and 4 to be tombstoned")
 	}
 }
