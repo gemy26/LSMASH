@@ -103,7 +103,7 @@ func FlushToSSTable(memtable *memTable.MemTable) (*SSTable, error) {
 	}
 	minKey := entries[0].Key
 	maxKey := entries[len(entries)-1].Key
-	m, k := calculateParams(uint64(len(entries)+1), .1)
+	m, k := calculateParams(uint64(len(entries)), .1)
 	bf := NewBloomFilter(m, k)
 
 	for _, e := range entries {
