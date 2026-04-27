@@ -2,6 +2,7 @@ package sstable
 
 import (
 	"hash/fnv"
+	memTable "lsmash/internal/memtable"
 	"math"
 )
 
@@ -72,4 +73,13 @@ func (bf *BloomFilter) isSet(pos uint64) bool {
 	byteIndex := pos / 8
 	bitIndex := pos % 8
 	return (bf.bitset[byteIndex] & (1 << bitIndex)) != 0
+}
+
+func BuildBloomFilter(item []memTable.Entry) *BloomFilter {
+	m, k := calculateParams(uint64(len(item)), .1)
+	filter := NewBloomFilter(m, k)
+	for i := 0; i < len(item); i++ {
+		filter.Add(intToByte(uint64(item[i].Key)))
+	}
+	return filter
 }

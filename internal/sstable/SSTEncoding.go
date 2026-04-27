@@ -95,3 +95,17 @@ func (s *SSTable) readEntry() ([]memTable.Entry, error) {
 	}
 	return data, nil
 }
+
+func (s *SSTable) readNextEntry() (memTable.Entry, error) {
+	var entry memTable.Entry
+	if err := binary.Read(s.file, binary.LittleEndian, &entry.Key); err != nil {
+		return entry, err
+	}
+	if err := binary.Read(s.file, binary.LittleEndian, &entry.Val); err != nil {
+		return entry, err
+	}
+	if err := binary.Read(s.file, binary.LittleEndian, &entry.Tombstoned); err != nil {
+		return entry, err
+	}
+	return entry, nil
+}

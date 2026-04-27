@@ -59,6 +59,23 @@ func newSSTableFileName(level int8) string {
 	return fmt.Sprintf("l%d_%d.lsm", level, count)
 }
 
+func buildHeader(entries []memTable.Entry, bf *BloomFilter) SSTableHeader {
+	minKey := entries[0].Key
+	maxKey := entries[len(entries)-1].Key
+	bloomBytes := uint32(len(bf.bitset))
+	dataSize := uint32(len(entries)) * uint32(entrySize)
+	bloomOffset := uint32(headerSize) + dataSize
+
+	header := SSTableHeader{
+		EntryCount:  uint32(len(entries)),
+		MinKey:      int64(minKey),
+		MaxKey:      int64(maxKey),
+		BloomSize:   bloomBytes,
+		BloomOffset: bloomOffset,
+	}
+	return header
+}
+
 // TODO: Seek-based Binary Search
 func (s *SSTable) Get(key int64) (int64, bool) {
 	if key < s.header.MinKey || key > s.header.MaxKey {
@@ -113,12 +130,12 @@ func FlushToSSTable(memtable *memTable.MemTable) (*SSTable, error) {
 	bloomBytes := uint32(len(bf.bitset))
 	dataSize := uint32(len(entries)) * uint32(entrySize)
 	bloomOffset := uint32(headerSize) + dataSize
-	totalSize := bloomOffset + bloomBytes
+	//totalSize := bloomOffset + bloomBytes
 
-	limit := config.DefaultConfig().SstableFileSizeLimit
-	if int64(totalSize) > limit {
-		return nil, fmt.Errorf("sstable size %d exceeds file size limit %d", totalSize, limit)
-	}
+	//limit := config.DefaultConfig().SstableFileSizeLimit
+	//if int64(totalSize) > limit {
+	//	return nil, fmt.Errorf("sstable size %d exceeds file size limit %d", totalSize, limit)
+	//}
 
 	header := SSTableHeader{
 		EntryCount:  uint32(len(entries)),
@@ -149,4 +166,43 @@ func intToByte(i uint64) []byte {
 	b := make([]byte, 8)
 	binary.BigEndian.PutUint64(b, i)
 	return b
+}
+
+func Compaction(it *MergeIterator, level int8) ([]*SSTable, error) {
+	var entries []memTable.Entry
+	var tables []*SSTable
+	for it.Next() {
+		if it.currEntry.Tombstoned {
+			continue
+		}
+		entries = append(entries, *it.Value())
+		if len(entries) == 5 { //TODO: change static number with config one
+			sstable, _ := sealSSTable(entries, level)
+			tables = append(tables, sstable)
+			entries = nil
+		}
+	}
+	if len(entries) != 0 {
+		sstable, _ := sealSSTable(entries, level)
+		tables = append(tables, sstable)
+	}
+	return tables, nil
+}
+func sealSSTable(entries []memTable.Entry, level int8) (*SSTable, error) {
+	bf := BuildBloomFilter(entries)
+	header := buildHeader(entries, bf)
+	sstable, err := NewSSTable(header, bf, level)
+	if err != nil {
+		return nil, err
+	}
+	if err := sstable.writeHeader(); err != nil {
+		return nil, err
+	}
+	if err := sstable.writeEntry(entries); err != nil {
+		return nil, err
+	}
+	if err := sstable.writeBloom(); err != nil {
+		return nil, err
+	}
+	return sstable, nil
 }
