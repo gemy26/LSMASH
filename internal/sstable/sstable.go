@@ -1,6 +1,7 @@
 package sstable
 
 import (
+	"encoding/binary"
 	"fmt"
 	"lsmash/config"
 	memTable "lsmash/internal/memtable"
@@ -58,15 +59,19 @@ func newSSTableFileName(level int8) string {
 	return fmt.Sprintf("l%d_%d.lsm", level, count)
 }
 
+// TODO: Seek-based Binary Search
 func (s *SSTable) Get(key int64) (int64, bool) {
 	if key < s.header.MinKey || key > s.header.MaxKey {
 		return 0, false
 	}
-	if !s.bloom.Contains(make([]byte, key)) {
+	if !s.bloom.Contains(intToByte(uint64(key))) {
 		return 0, false
 	}
 
-	data := s.readEntry()
+	data, err := s.readEntry()
+	if err != nil {
+		return 0, false
+	}
 	l, r := 0, len(data)-1
 	idx := -1
 	for r >= l {
@@ -102,7 +107,7 @@ func FlushToSSTable(memtable *memTable.MemTable) (*SSTable, error) {
 	bf := NewBloomFilter(m, k)
 
 	for _, e := range entries {
-		bf.Add(make([]byte, e.Key))
+		bf.Add(intToByte(uint64(e.Key)))
 	}
 
 	bloomBytes := uint32(len(bf.bitset))
@@ -138,4 +143,10 @@ func FlushToSSTable(memtable *memTable.MemTable) (*SSTable, error) {
 	}
 
 	return sst, nil
+}
+
+func intToByte(i uint64) []byte {
+	b := make([]byte, 8)
+	binary.BigEndian.PutUint64(b, i)
+	return b
 }
