@@ -31,15 +31,21 @@ func calculateParams(n uint64, p float64) (m uint64, k uint64) {
 	return
 }
 
-func (bf *BloomFilter) hash(item []byte) uint64 {
+func (bf *BloomFilter) hash1(item []byte) uint64 {
 	h := fnv.New64()
 	h.Write(item)
 	return h.Sum64()
 }
 
+func (bf *BloomFilter) hash2(item []byte) uint64 {
+	h := fnv.New64a()
+	h.Write(item)
+	return h.Sum64()
+}
+
 func (bf *BloomFilter) Add(item []byte) {
-	h1 := bf.hash(item)
-	h2 := bf.hash(item)
+	h1 := bf.hash1(item)
+	h2 := bf.hash2(item)
 
 	for i := uint64(0); i < bf.k; i++ {
 		pos := (h1 + i*h2) % bf.m
@@ -51,8 +57,8 @@ func (bf *BloomFilter) Add(item []byte) {
 }
 
 func (bf *BloomFilter) Contains(item []byte) bool {
-	h1 := bf.hash(item)
-	h2 := bf.hash(item)
+	h1 := bf.hash1(item)
+	h2 := bf.hash2(item)
 	for i := uint64(0); i < bf.k; i++ {
 		pos := (h1 + i*h2) % bf.m
 		if !bf.isSet(pos) {

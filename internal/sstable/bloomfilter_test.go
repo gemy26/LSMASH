@@ -10,18 +10,18 @@ func TestBloomFilter(t *testing.T) {
 	m, k := calculateParams(100000, 0.01)
 	bf := NewBloomFilter(m, k)
 	items := [][]byte{
-		make([]byte, 10),
-		make([]byte, 13),
-		make([]byte, 123),
-		make([]byte, 55),
-		make([]byte, 70),
-		make([]byte, 145),
-		make([]byte, 32),
-		make([]byte, 435),
-		make([]byte, 9),
-		make([]byte, 22),
-		make([]byte, 69),
-		make([]byte, 45),
+		intToByte(10),
+		intToByte(13),
+		intToByte(123),
+		intToByte(55),
+		intToByte(70),
+		intToByte(145),
+		intToByte(32),
+		intToByte(435),
+		intToByte(9),
+		intToByte(22),
+		intToByte(69),
+		intToByte(45),
 	}
 	for _, item := range items {
 		bf.Add(item)
@@ -32,10 +32,10 @@ func TestBloomFilter(t *testing.T) {
 		}
 	}
 
-	if bf.Contains(make([]byte, 77)) {
+	if bf.Contains(intToByte(77)) {
 		t.Fatalf("expected to not be found")
 	}
-	if bf.Contains(make([]byte, 37)) {
+	if bf.Contains(intToByte(37)) {
 		t.Fatalf("expected to not be found")
 	}
 }
