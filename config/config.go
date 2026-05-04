@@ -22,7 +22,7 @@ func DefaultConfig() Config {
 	dataDir := filepath.Join(wd, "data")
 	_ = os.MkdirAll(dataDir, 0755)
 	return Config{
-		MemTableSizeLimit:     85,
+		MemTableSizeLimit:     5,
 		SkipListMaxLevels:     5,
 		SkipListprobability:   0.1,
 		SstableFileSizeLimit:  116,

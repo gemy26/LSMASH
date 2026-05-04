@@ -4,7 +4,7 @@ import "lsmash/config"
 
 type MemTable struct {
 	SkipList *SkipList
-	Size     int64
+	Size     int64 //The number of items
 }
 
 func NewMemTable() *MemTable {

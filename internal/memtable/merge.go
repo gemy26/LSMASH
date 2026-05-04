@@ -2,6 +2,7 @@ package memTable
 
 import (
 	"container/heap"
+	"log"
 )
 
 type IteratorHeap []*Iterator
@@ -19,6 +20,7 @@ func (h *IteratorHeap) Pop() any {
 }
 
 func Merge(iterators []*Iterator) []Entry {
+	log.Printf("Merging %d iterators of Immutable memtables", len(iterators))
 	h := &IteratorHeap{}
 	heap.Init(h)
 	list := make([]Entry, 0)
