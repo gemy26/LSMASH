@@ -20,7 +20,7 @@ func makeSSTableForCompaction(t *testing.T, kvs []struct{ k, v int64 }, tombston
 	if err != nil {
 		t.Fatalf("FlushToSSTable: %v", err)
 	}
-	path := sst.filePath + "/" + sst.fileName
+	path := sst.filePath + "/" + sst.FileName
 	f, err := os.Open(path)
 	if err != nil {
 		t.Fatalf("reopen: %v", err)
@@ -43,7 +43,7 @@ func runCompaction(t *testing.T, files []*SSTable, level int8) []*SSTable {
 		t.Fatalf("Compaction: %v", err)
 	}
 	for _, tbl := range tables {
-		path := tbl.filePath + "/" + tbl.fileName
+		path := tbl.filePath + "/" + tbl.FileName
 		f, err := os.Open(path)
 		if err != nil {
 			t.Fatalf("reopen compaction output: %v", err)
@@ -123,7 +123,7 @@ func TestCompaction_TombstonePreserved(t *testing.T) {
 	mt.SkipList.Insert(2, 200)
 	mt.SkipList.Delete(2)
 	sst, _ := FlushToSSTable(mt)
-	path := sst.filePath + "/" + sst.fileName
+	path := sst.filePath + "/" + sst.FileName
 	f, _ := os.Open(path)
 	sst.file = f
 	sst.readHeader()
@@ -186,8 +186,8 @@ func TestCompaction_OutputLevel(t *testing.T) {
 	f1 := makeSSTableForCompaction(t, []struct{ k, v int64 }{{1, 1}, {2, 2}, {3, 3}, {4, 4}, {5, 5}}, nil)
 	tables := runCompaction(t, []*SSTable{f1}, 2)
 	for _, tbl := range tables {
-		if len(tbl.fileName) < 3 || tbl.fileName[:3] != "l2_" {
-			t.Errorf("output file %q should be at level 2", tbl.fileName)
+		if len(tbl.FileName) < 3 || tbl.FileName[:3] != "l2_" {
+			t.Errorf("output file %q should be at level 2", tbl.FileName)
 		}
 	}
 }

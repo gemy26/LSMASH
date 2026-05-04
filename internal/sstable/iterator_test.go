@@ -21,7 +21,7 @@ func flushAndReopen(t *testing.T, kvs []struct{ k, v int64 }, tombstones []int64
 	if err != nil {
 		t.Fatalf("FlushToSSTable: %v", err)
 	}
-	path := sst.filePath + "/" + sst.fileName
+	path := sst.filePath + "/" + sst.FileName
 	f, err := os.Open(path)
 	if err != nil {
 		t.Fatalf("reopen: %v", err)
@@ -193,7 +193,7 @@ func TestMergeIterator_TombstonePropagated(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	path := sst.filePath + "/" + sst.fileName
+	path := sst.filePath + "/" + sst.FileName
 	f, _ := os.Open(path)
 	sst.file = f
 	sst.readHeader()

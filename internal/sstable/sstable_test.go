@@ -24,7 +24,7 @@ func TestFlushAndGet(t *testing.T) {
 	}
 	defer func() {
 		cfg := config.DefaultConfig()
-		os.Remove(filepath.Join(cfg.WorkingDir, sst.fileName))
+		os.Remove(filepath.Join(cfg.WorkingDir, sst.FileName))
 	}()
 
 	if sst.header.MinKey != 1 {
@@ -91,7 +91,7 @@ func BenchmarkGet(b *testing.B) {
 	}
 	defer func() {
 		cfg := config.DefaultConfig()
-		os.Remove(filepath.Join(cfg.WorkingDir, sst.fileName))
+		os.Remove(filepath.Join(cfg.WorkingDir, sst.FileName))
 	}()
 
 	keys := make([]int64, 10000)

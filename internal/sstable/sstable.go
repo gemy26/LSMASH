@@ -21,7 +21,7 @@ type SSTableHeader struct {
 type SSTable struct {
 	header   SSTableHeader
 	filePath string
-	fileName string
+	FileName string
 	bloom    *BloomFilter
 	file     *os.File
 }
@@ -39,7 +39,7 @@ func NewSSTable(header SSTableHeader, bloomFilter *BloomFilter, level int8) (*SS
 	return &SSTable{
 		header:   header,
 		filePath: cfg.WorkingDir,
-		fileName: fileName,
+		FileName: fileName,
 		bloom:    bloomFilter,
 		file:     file,
 	}, nil
@@ -114,6 +114,14 @@ func (s *SSTable) Get(key int64) (int64, bool) {
 	return entry.Val, true
 }
 
+func (s *SSTable) Delete() error {
+	err := os.Remove(s.filePath)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func FlushToSSTable(memtable *memTable.MemTable) (*SSTable, error) {
 	entries := memtable.SkipList.ScanAll()
 	if len(entries) == 0 {
@@ -131,12 +139,6 @@ func FlushToSSTable(memtable *memTable.MemTable) (*SSTable, error) {
 	bloomBytes := uint32(len(bf.bitset))
 	dataSize := uint32(len(entries)) * uint32(entrySize)
 	bloomOffset := uint32(headerSize) + dataSize
-	//totalSize := bloomOffset + bloomBytes
-
-	//limit := config.DefaultConfig().SstableFileSizeLimit
-	//if int64(totalSize) > limit {
-	//	return nil, fmt.Errorf("sstable size %d exceeds file size limit %d", totalSize, limit)
-	//}
 
 	header := SSTableHeader{
 		EntryCount:  uint32(len(entries)),
@@ -177,13 +179,19 @@ func Compaction(it *MergeIterator, level int8) ([]*SSTable, error) {
 		}
 		entries = append(entries, *it.Value())
 		if len(entries) == 5 { //TODO: change static number with config one
-			sstable, _ := sealSSTable(entries, level)
+			sstable, err := sealSSTable(entries, level)
+			if err != nil {
+				return nil, fmt.Errorf("sealSSTable: %w", err)
+			}
 			tables = append(tables, sstable)
 			entries = nil
 		}
 	}
 	if len(entries) != 0 {
-		sstable, _ := sealSSTable(entries, level)
+		sstable, err := sealSSTable(entries, level)
+		if err != nil {
+			return nil, fmt.Errorf("sealSSTable: %w", err)
+		}
 		tables = append(tables, sstable)
 	}
 	return tables, nil
