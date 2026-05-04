@@ -41,6 +41,9 @@ type ReaderWriter interface {
 // VALUE 64
 // OP 1
 func (w *Wal) Append(record *WalRecord) error {
+	if w.ReaderWriter == nil {
+		return fmt.Errorf("WAL is closed/deleted")
+	}
 	if err := binary.Write(w.ReaderWriter, binary.LittleEndian, record.Key); err != nil {
 		return err
 	}
@@ -67,7 +70,7 @@ func Reply() ([]WalRecord, error) {
 	file, err := os.Open(fullPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, nil
+			return nil, err
 		}
 		return nil, err
 	}
@@ -150,5 +153,6 @@ func (w *Wal) DeleteWAL() (bool, error) {
 	if err != nil {
 		return false, err
 	}
+	w.ReaderWriter = nil
 	return true, err
 }
