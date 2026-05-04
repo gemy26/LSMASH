@@ -31,7 +31,7 @@ func TestAppendAndReply(t *testing.T) {
 		t.Fatalf("Append failed: %v", err)
 	}
 
-	data, err := wal.Reply()
+	data, err := Reply()
 	if err != nil {
 		t.Fatalf("Reply failed: %v", err)
 	}
@@ -64,7 +64,7 @@ func TestDeleteWAL(t *testing.T) {
 		t.Error("Append should fail after WAL is deleted")
 	}
 
-	_, err = wal.Reply()
+	_, err = Reply()
 	if err == nil {
 		t.Error("Reply should fail after WAL is deleted")
 	}

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"hash/crc32"
 	"io"
+	"log"
 	"lsmash/config"
 	"os"
 	"path/filepath"
@@ -58,36 +59,44 @@ func (w *Wal) Append(record *WalRecord) error {
 	}
 	return w.ReaderWriter.Sync()
 }
-func (w *Wal) Reply() ([]WalRecord, error) {
-	_, err := w.ReaderWriter.Seek(0, io.SeekStart)
+func Reply() ([]WalRecord, error) {
+	walFilename := "wal.log"
+	cfg := config.DefaultConfig()
+	fullPath := filepath.Join(cfg.WorkingDir, walFilename)
+
+	file, err := os.Open(fullPath)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
 		return nil, err
 	}
+	defer file.Close()
 	var records []WalRecord
 	for {
 		var rec WalRecord
-		if err := binary.Read(w.ReaderWriter, binary.LittleEndian, &rec.Key); err != nil {
-			if err == io.EOF {
+		if err := binary.Read(file, binary.LittleEndian, &rec.Key); err != nil {
+			if err == io.EOF || err == io.ErrUnexpectedEOF {
 				break
 			}
 			return nil, err
 		}
-		if err := binary.Read(w.ReaderWriter, binary.LittleEndian, &rec.Value); err != nil {
+		if err := binary.Read(file, binary.LittleEndian, &rec.Value); err != nil {
 			return nil, err
 		}
-		if err := binary.Read(w.ReaderWriter, binary.LittleEndian, &rec.OP); err != nil {
+		if err := binary.Read(file, binary.LittleEndian, &rec.OP); err != nil {
 			return nil, err
 		}
 		var storedCRC uint32
-		if err := binary.Read(w.ReaderWriter, binary.LittleEndian, &storedCRC); err != nil {
+		if err := binary.Read(file, binary.LittleEndian, &storedCRC); err != nil {
 			return nil, err
 		}
 		recCRC, err := calculateCRC(&rec)
 		if err != nil {
-			return nil, fmt.Errorf("failed to calculate CRC for record: %w", err)
+			return nil, fmt.Errorf("failed CRC calc: %w", err)
 		}
 		if storedCRC != recCRC {
-			return nil, fmt.Errorf("CRC mismatch: data is corrupt")
+			return nil, fmt.Errorf("CRC mismatch: WAL corrupted")
 		}
 		records = append(records, rec)
 	}
@@ -119,7 +128,7 @@ func CreateNewWal() (*Wal, error) {
 	if err != nil {
 		return nil, err
 	}
-
+	log.Printf("new wal.log file created, location: %s", fullPath)
 	if _, err := file.Seek(0, io.SeekStart); err != nil {
 		file.Close()
 		return nil, err
