@@ -17,7 +17,7 @@ type MainfestRecord struct {
 	Type    string   `json:"type"`
 	Added   []string `json:"added"`
 	Removed []string `json:"removed"`
-	Level   int64    `json:"level"`
+	Level   int8     `json:"level"`
 }
 
 func (m *Mainfest) Add(record MainfestRecord) {
@@ -67,4 +67,18 @@ func NewMainfest() (*Mainfest, error) {
 		file:     file,
 	}
 	return mainfest, nil
+}
+
+func (m *Mainfest) CreateMinfestRecords(
+	oldFiles []string,
+	newFiles []string,
+	operationType string,
+	level int8) MainfestRecord {
+	record := MainfestRecord{
+		Type:    operationType,
+		Added:   newFiles,
+		Removed: oldFiles,
+		Level:   level,
+	}
+	return record
 }
