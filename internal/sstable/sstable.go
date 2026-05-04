@@ -76,7 +76,6 @@ func buildHeader(entries []memTable.Entry, bf *BloomFilter) SSTableHeader {
 	return header
 }
 
-// TODO: Seek-based Binary Search
 func (s *SSTable) Get(key int64) (int64, bool) {
 	if key < s.header.MinKey || key > s.header.MaxKey {
 		return 0, false
@@ -85,18 +84,20 @@ func (s *SSTable) Get(key int64) (int64, bool) {
 		return 0, false
 	}
 
-	data, err := s.readEntry()
-	if err != nil {
-		return 0, false
-	}
-	l, r := 0, len(data)-1
-	idx := -1
+	l, r := int32(0), int32(s.header.EntryCount)
+	idx := int32(-1)
+	var entry memTable.Entry
 	for r >= l {
 		mid := (l + r) / 2
-		if data[mid].Key == key {
+		e, err := s.readEntryAt(int64(mid * entrySize))
+		entry = e
+		if err != nil {
+			return 0, false
+		}
+		if e.Key == key {
 			idx = mid
 			break
-		} else if data[mid].Key < key {
+		} else if e.Key < key {
 			l = mid + 1
 		} else {
 			r = mid - 1
@@ -106,11 +107,11 @@ func (s *SSTable) Get(key int64) (int64, bool) {
 		return 0, false
 	}
 
-	if data[idx].Tombstoned {
+	if entry.Tombstoned {
 		return 0, false
 	}
 
-	return data[idx].Val, true
+	return entry.Val, true
 }
 
 func FlushToSSTable(memtable *memTable.MemTable) (*SSTable, error) {
@@ -158,7 +159,6 @@ func FlushToSSTable(memtable *memTable.MemTable) (*SSTable, error) {
 	if err := sst.writeBloom(); err != nil {
 		return nil, fmt.Errorf("writeBloom: %w", err)
 	}
-
 	return sst, nil
 }
 

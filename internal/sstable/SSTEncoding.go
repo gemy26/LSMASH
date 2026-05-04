@@ -96,6 +96,25 @@ func (s *SSTable) readEntry() ([]memTable.Entry, error) {
 	return data, nil
 }
 
+func (s *SSTable) readEntryAt(offset int64) (memTable.Entry, error) {
+	if _, err := s.file.Seek(headerSize+offset, 0); err != nil {
+		return memTable.Entry{}, err
+	}
+
+	var entry memTable.Entry
+	if err := binary.Read(s.file, binary.LittleEndian, &entry.Key); err != nil {
+		return memTable.Entry{}, err
+	}
+	if err := binary.Read(s.file, binary.LittleEndian, &entry.Val); err != nil {
+		return memTable.Entry{}, err
+	}
+	if err := binary.Read(s.file, binary.LittleEndian, &entry.Tombstoned); err != nil {
+		return memTable.Entry{}, err
+	}
+
+	return entry, nil
+}
+
 func (s *SSTable) readNextEntry() (memTable.Entry, error) {
 	var entry memTable.Entry
 	if err := binary.Read(s.file, binary.LittleEndian, &entry.Key); err != nil {

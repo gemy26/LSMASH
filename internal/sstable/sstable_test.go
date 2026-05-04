@@ -3,6 +3,7 @@ package sstable
 import (
 	"lsmash/config"
 	memTable "lsmash/internal/memtable"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"testing"
@@ -74,4 +75,39 @@ func TestFlushEmptyMemtable(t *testing.T) {
 	if err == nil {
 		t.Error("expected error flushing empty memtable, got nil")
 	}
+}
+
+func BenchmarkGet(b *testing.B) {
+	mt := memTable.NewMemTable()
+
+	const N = 100000
+	for i := int64(0); i < N; i++ {
+		mt.SkipList.Insert(i, i)
+	}
+
+	sst, err := FlushToSSTable(mt)
+	if err != nil {
+		b.Fatal(err)
+	}
+	defer func() {
+		cfg := config.DefaultConfig()
+		os.Remove(filepath.Join(cfg.WorkingDir, sst.fileName))
+	}()
+
+	keys := make([]int64, 10000)
+	for i := 0; i < len(keys); i++ {
+		keys[i] = rand.Int63n(N)
+	}
+
+	var result int64
+	var ok bool
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		k := keys[i%len(keys)]
+		result, ok = sst.Get(k)
+	}
+
+	_ = result
+	_ = ok
 }
