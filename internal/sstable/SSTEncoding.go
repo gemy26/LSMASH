@@ -2,7 +2,7 @@ package sstable
 
 import (
 	"encoding/binary"
-	"lsmash/internal/memtable"
+	memTable "lsmash/internal/memtable"
 )
 
 const headerSize = 28 // 2×int64 + 3×uint32 (MinKey, MaxKey, EntryCount, BloomSize, BloomOffset)
@@ -62,6 +62,9 @@ func (s *SSTable) readHeader() error {
 	return nil
 }
 func (s *SSTable) readBloom() error {
+	if _, err := s.file.Seek(int64(s.header.BloomOffset), 0); err != nil {
+		return err
+	}
 	bitset := make([]byte, s.header.BloomSize)
 	if err := binary.Read(s.file, binary.LittleEndian, &bitset); err != nil {
 		return err
