@@ -1,2 +1,3 @@
 structure.txt
 internal/sstable/data
+internal/mainfest/data

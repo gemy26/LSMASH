@@ -62,7 +62,7 @@ func (w *Wal) Append(record *WalRecord) error {
 	}
 	return w.ReaderWriter.Sync()
 }
-func Reply() ([]WalRecord, error) {
+func Replay() ([]WalRecord, error) {
 	walFilename := "wal.log"
 	cfg := config.DefaultConfig()
 	fullPath := filepath.Join(cfg.WorkingDir, walFilename)

@@ -154,7 +154,7 @@ func TestEngineManifestRecordsOnCompaction(t *testing.T) {
 		e.Insert(i, i*10)
 	}
 
-	records := e.mainfest.Reply()
+	records := e.mainfest.Replay()
 	if len(records) == 0 {
 		t.Fatal("expected manifest records after compaction, got none")
 	}
@@ -198,7 +198,7 @@ func TestEngineManifestReplay(t *testing.T) {
 		e1.Insert(i, i*10)
 	}
 
-	origRecords := e1.mainfest.Reply()
+	origRecords := e1.mainfest.Replay()
 	if len(origRecords) == 0 {
 		t.Fatal("expected manifest records after compaction")
 	}
@@ -207,7 +207,7 @@ func TestEngineManifestReplay(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	replayedRecords := mf.Reply()
+	replayedRecords := mf.Replay()
 
 	if len(replayedRecords) != len(origRecords) {
 		t.Fatalf("manifest replay: expected %d records, got %d", len(origRecords), len(replayedRecords))
@@ -271,7 +271,7 @@ func TestEngineWALReplay(t *testing.T) {
 	e.Insert(20, 200)
 
 	// WAL should contain 2 records
-	records, err := wal.Reply()
+	records, err := wal.Replay()
 	if err != nil {
 		t.Fatalf("wal.Reply: %v", err)
 	}
@@ -299,5 +299,31 @@ func TestEngineThreeLevels(t *testing.T) {
 
 	if len(e.sstable) != 3 {
 		t.Fatalf("expected 3 SSTable levels, got %d", len(e.sstable))
+	}
+}
+
+func TestEngineRecoveryAfterCompaction(t *testing.T) {
+	cleanDataDir(t)
+	t.Cleanup(func() { cleanDataDir(t) })
+	cfg := config.DefaultConfig()
+
+	e1, err := CreateEngine(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := int64(1); i <= 26; i++ {
+		e1.Insert(i, i*10)
+	}
+
+	// Restore from manifest
+	e2, err := CreateEngine(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := e2.Get(1); got != 10 {
+		t.Fatalf("after SSTable recovery: expected key 1: 10, got %d", got)
+	}
+	if got := e2.Get(15); got != 150 {
+		t.Fatalf("after SSTable recovery: expected key 15: 150, got %d", got)
 	}
 }

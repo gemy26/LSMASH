@@ -4,7 +4,7 @@ import (
 	"log"
 	config "lsmash/config"
 	"lsmash/internal/mainfest"
-	"lsmash/internal/memtable"
+	memTable "lsmash/internal/memtable"
 	"lsmash/internal/sstable"
 	"lsmash/internal/wal"
 )
@@ -33,7 +33,7 @@ func (e *Engine) insertIntoMemtable(key int64, value int64) error {
 			for i, v := range e.immutable {
 				log.Printf("Flushing memtable #%d", i)
 				table, err := sstable.FlushToSSTable(v)
-				//TODO: Add Mainfest Records for Flush
+				e.mainfest.Add(e.mainfest.CreateMinfestRecords(nil, []string{table.FileName}, mainfest.FlushOp, 0))
 				if err != nil {
 					log.Printf("Flush failed: %v", err)
 					return err
@@ -87,9 +87,14 @@ func (e *Engine) Get(key int64) int64 {
 		}
 	}
 	log.Printf("key not found in Immutable memtable, now search in sstable: %v", key)
+	log.Printf("sstable levels: %d", len(e.sstable))
+	log.Printf("sstable level 0 len: %d", len(e.sstable[0]))
+	log.Printf("sstable level 1 len: %d", len(e.sstable[1]))
+	log.Printf("sstable level 2 len: %d", len(e.sstable[2]))
 	for i, level := range e.sstable {
 		for j := len(level) - 1; j >= 0; j-- {
-			if val, err := level[j].Get(key); err == true {
+			log.Printf("Getting key: %d from sstable: %d level: %d", key, i, j)
+			if val, ok := level[j].Get(key); ok == true {
 				log.Printf("key found in SSTable level: %d, ssteble: %d,  with val: %v", i, j, val)
 				return val
 			}
@@ -126,7 +131,7 @@ func CreateEngine(config config.Config) (*Engine, error) {
 		wal:       w,
 		mainfest:  mf,
 	}
-	records, err := wal.Reply()
+	records, err := wal.Replay()
 	if err != nil {
 		return &Engine{}, err
 	}
@@ -145,7 +150,37 @@ func CreateEngine(config config.Config) (*Engine, error) {
 		}
 	}
 
-	//TODO: Reply Mainfest
+	//TODO: Replay Mainfest
+
+	mainfestRecords := mf.Replay()
+	levelState := make([][]string, 3)
+	for _, record := range mainfestRecords {
+		if record.Added != nil {
+			levelState[record.Level] = append(levelState[record.Level], record.Added...)
+		}
+		if record.Removed != nil {
+			removed := make(map[string]struct{}, len(record.Removed))
+			for _, f := range record.Removed {
+				removed[f] = struct{}{}
+			}
+
+			filtered := levelState[record.Level][:0]
+			for _, f := range levelState[record.Level] {
+				if _, ok := removed[f]; !ok {
+					filtered = append(filtered, f)
+				}
+			}
+
+			levelState[record.Level] = filtered
+		}
+	}
+
+	for i := 0; i < 3; i++ {
+		newEngine.sstable[i] = make([]*sstable.SSTable, len(levelState[i]))
+		for j, file := range levelState[i] {
+			newEngine.sstable[i][j] = sstable.OpenSStable(file)
+		}
+	}
 
 	return newEngine, nil
 }
@@ -183,9 +218,8 @@ func (e *Engine) forceCompaction() {
 				newFiles[j] = t.FileName
 			}
 
-			//TODO: Use the Op Enum
-			e.mainfest.Add(e.mainfest.CreateMinfestRecords(oldFiles[0], nil, "Compaction", int8(level)))
-			e.mainfest.Add(e.mainfest.CreateMinfestRecords(oldFiles[1], newFiles, "Compaction", int8(level+1)))
+			e.mainfest.Add(e.mainfest.CreateMinfestRecords(oldFiles[0], nil, mainfest.CompactionOp, int8(level)))
+			e.mainfest.Add(e.mainfest.CreateMinfestRecords(oldFiles[1], newFiles, mainfest.CompactionOp, int8(level+1)))
 
 			e.sstable[level+1] = newSSTables
 			e.sstable[level] = []*sstable.SSTable{}

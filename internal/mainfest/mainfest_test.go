@@ -24,7 +24,7 @@ func TestManifest_AddAndReplay(t *testing.T) {
 	m.Add(MainfestRecord{Level: 0, Type: "Flush", Added: []string{"l0_0.lsm"}, Removed: nil})
 	m.Add(MainfestRecord{Level: 1, Type: "Compaction", Added: []string{"l1_0.lsm"}, Removed: []string{"l0_0.lsm"}})
 
-	rcs := m.Reply()
+	rcs := m.Replay()
 	if len(rcs) != 2 {
 		t.Fatalf("expected 2 records, got %d", len(rcs))
 	}
@@ -48,7 +48,7 @@ func TestManifest_PersistsAcrossReopens(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	rcs := m2.Reply()
+	rcs := m2.Replay()
 	if len(rcs) != 1 || rcs[0].Added[0] != "l0_0.lsm" {
 		t.Errorf("expected l0_0.lsm after reopen, got %+v", rcs)
 	}

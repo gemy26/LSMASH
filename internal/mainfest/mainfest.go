@@ -12,7 +12,7 @@ type OpType string
 
 const (
 	CompactionOp OpType = "Compaction"
-	FlushOp		 OpType = "Flush" 
+	FlushOp      OpType = "Flush"
 )
 
 type Mainfest struct {
@@ -42,7 +42,7 @@ func (m *Mainfest) Add(record MainfestRecord) {
 	}
 }
 
-func (m *Mainfest) Reply() []MainfestRecord {
+func (m *Mainfest) Replay() []MainfestRecord {
 	m.file.Seek(0, 0)
 	var records []MainfestRecord
 	scanner := bufio.NewScanner(m.file)
