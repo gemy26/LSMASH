@@ -3,6 +3,7 @@ package sstable
 import (
 	"encoding/binary"
 	"fmt"
+	"log"
 	"lsmash/config"
 	memTable "lsmash/internal/memtable"
 	"os"
@@ -213,4 +214,24 @@ func sealSSTable(entries []memTable.Entry, level int8) (*SSTable, error) {
 		return nil, err
 	}
 	return sstable, nil
+}
+
+func OpenSStable(filename string) *SSTable {
+	cfg := config.DefaultConfig()
+	fullPath := filepath.Join(cfg.WorkingDir, filename)
+
+	file, err := os.Open(fullPath)
+	if err != nil {
+		log.Fatal("Error while openning file", filename)
+	}
+
+	table := &SSTable{
+		file:     file,
+		FileName: filename,
+		filePath: fullPath,
+	}
+
+	table.readHeader()
+	table.readBloom()
+	return table
 }
