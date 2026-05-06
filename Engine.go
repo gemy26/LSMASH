@@ -183,6 +183,7 @@ func (e *Engine) forceCompaction() {
 				newFiles[j] = t.FileName
 			}
 
+			//TODO: Use the Op Enum
 			e.mainfest.Add(e.mainfest.CreateMinfestRecords(oldFiles[0], nil, "Compaction", int8(level)))
 			e.mainfest.Add(e.mainfest.CreateMinfestRecords(oldFiles[1], newFiles, "Compaction", int8(level+1)))
 

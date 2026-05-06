@@ -8,13 +8,20 @@ import (
 	"os"
 )
 
+type OpType string
+
+const (
+	CompactionOp OpType = "Compaction"
+	FlushOp		 OpType = "Flush" 
+)
+
 type Mainfest struct {
 	filePath string
 	file     *os.File
 }
 
 type MainfestRecord struct {
-	Type    string   `json:"type"`
+	Type    OpType   `json:"type"`
 	Added   []string `json:"added"`
 	Removed []string `json:"removed"`
 	Level   int8     `json:"level"`
@@ -72,7 +79,7 @@ func NewMainfest() (*Mainfest, error) {
 func (m *Mainfest) CreateMinfestRecords(
 	oldFiles []string,
 	newFiles []string,
-	operationType string,
+	operationType OpType,
 	level int8) MainfestRecord {
 	record := MainfestRecord{
 		Type:    operationType,
