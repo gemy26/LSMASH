@@ -1,4 +1,4 @@
-package lsmash
+package engine
 
 import (
 	"log"
@@ -87,10 +87,6 @@ func (e *Engine) Get(key int64) int64 {
 		}
 	}
 	log.Printf("key not found in Immutable memtable, now search in sstable: %v", key)
-	log.Printf("sstable levels: %d", len(e.sstable))
-	log.Printf("sstable level 0 len: %d", len(e.sstable[0]))
-	log.Printf("sstable level 1 len: %d", len(e.sstable[1]))
-	log.Printf("sstable level 2 len: %d", len(e.sstable[2]))
 	for i, level := range e.sstable {
 		for j := len(level) - 1; j >= 0; j-- {
 			log.Printf("Getting key: %d from sstable: %d level: %d", key, i, j)
@@ -150,8 +146,7 @@ func CreateEngine(config config.Config) (*Engine, error) {
 		}
 	}
 
-	//TODO: Replay Mainfest
-
+	//Replay Mainfest
 	mainfestRecords := mf.Replay()
 	levelState := make([][]string, 3)
 	for _, record := range mainfestRecords {
