@@ -112,15 +112,38 @@ func TestEngineFlushAndCompaction(t *testing.T) {
 	if len(e.sstable[0]) != 0 {
 		t.Fatalf("expected L0 empty after compaction, got %d SSTables", len(e.sstable[0]))
 	}
-	if len(e.sstable[1]) != 0 {
-		t.Fatalf("expected L1 empty after cascading compaction, got %d SSTables", len(e.sstable[1]))
+	if len(e.sstable[1]) != 5 {
+		t.Fatalf("expected L1 to comfortably hold 5 SSTables after exponential scaling updates, got %d SSTables", len(e.sstable[1]))
 	}
-	if len(e.sstable[2]) == 0 {
-		t.Fatal("expected L2 to have SSTables after cascading compaction, got 0")
+	if len(e.sstable[2]) != 0 {
+		t.Fatal("expected L2 to be empty as L1 accommodates the expanded capacity")
 	}
 
 	if e.memtable.Size != 1 {
 		t.Fatalf("expected active memtable size 1, got %d", e.memtable.Size)
+	}
+}
+
+func TestEngineCompactionToLevel2(t *testing.T) {
+	cleanDataDir(t)
+	t.Cleanup(func() { cleanDataDir(t) })
+	e := createTestEngine(t)
+	for i := int64(1); i <= 251; i++ {
+		e.Insert(i, i*10)
+	}
+
+	if len(e.sstable[0]) != 0 {
+		t.Fatalf("expected L0 to be empty, got %d", len(e.sstable[0]))
+	}
+	if len(e.sstable[1]) != 0 {
+		t.Fatalf("expected L1 to be empty after cascading to L2, got %d", len(e.sstable[1]))
+	}
+	if len(e.sstable[2]) != 50 {
+		t.Fatalf("expected L2 to hold exactly 50 SSTables, got %d", len(e.sstable[2]))
+	}
+
+	if got := e.Get(100); got != 1000 {
+		t.Fatalf("expected key 100 from L2: 1000, got %d", got)
 	}
 }
 
@@ -158,26 +181,21 @@ func TestEngineManifestRecordsOnCompaction(t *testing.T) {
 	if len(records) == 0 {
 		t.Fatal("expected manifest records after compaction, got none")
 	}
-
-	// Cascading compaction produces 4 records:
-	//   L0→L1: record for L0 (removed old), record for L1 (removed old + added new)
-	//   L1→L2: record for L1 (removed), record for L2 (added)
 	compactionCount := 0
 	for _, r := range records {
 		if r.Type == "Compaction" {
 			compactionCount++
 		}
 	}
-	if compactionCount < 4 {
-		t.Fatalf("expected at least 4 Compaction manifest records for cascading compaction, got %d", compactionCount)
+	if compactionCount < 2 {
+		t.Fatalf("expected at least 2 Compaction manifest records for single compaction, got %d", compactionCount)
 	}
 
-	// Verify records span L0, L1, and L2
 	levelsPresent := map[int8]bool{}
 	for _, r := range records {
 		levelsPresent[r.Level] = true
 	}
-	for _, level := range []int8{0, 1, 2} {
+	for _, level := range []int8{0, 1} {
 		if !levelsPresent[level] {
 			t.Errorf("expected manifest record for level %d, but none found", level)
 		}

@@ -27,8 +27,7 @@ func (e *Engine) insertIntoMemtable(key int64, value int64) error {
 		log.Printf("push memtable to immutabe, current size: %d", len(e.immutable))
 		e.memtable = memTable.NewMemTable()
 		//Triger Flush
-		if len(e.immutable) == 5 {
-			//TODO: Change that static number to config value
+		if len(e.immutable) >= e.config.MaxImmutableMemtables {
 			log.Println("Flushing immutable memtables to SSTables")
 			for i, v := range e.immutable {
 				log.Printf("Flushing memtable #%d", i)
@@ -44,6 +43,11 @@ func (e *Engine) insertIntoMemtable(key int64, value int64) error {
 			if err != nil {
 				return err
 			}
+			newWal, err := wal.CreateNewWal()
+			if err != nil {
+				return err
+			}
+			e.wal = newWal
 			e.immutable = make([]*memTable.MemTable, 0)
 		}
 	}
@@ -191,7 +195,11 @@ func (e *Engine) forceCompaction() {
 	// Check if the L0 is full -> start compaction L0 and L1 and so on for other levels
 	// Update Mainfest
 	for level := 0; level+1 < len(e.sstable); level++ {
-		if len(e.sstable[level]) == 5 { //TODO: Change fixed number into matrix of level and max Size
+		var levelSize int64
+		for _, t := range e.sstable[level] {
+			levelSize += t.Size()
+		}
+		if levelSize >= e.config.GetLevelDataSizeLimit(level) {
 			iterators := make([]*sstable.Iterator, len(e.sstable[level])+len(e.sstable[level+1]))
 			idx := 0
 			for i := 0; i < 2; i++ {
@@ -212,7 +220,7 @@ func (e *Engine) forceCompaction() {
 				oldFiles[i] = make([]string, len(tables))
 				for j, t := range tables {
 					oldFiles[i][j] = t.FileName
-					t.Delete() //TODO: delete after mainfest
+					t.Delete()
 				}
 			}
 			newFiles := make([]string, len(newSSTables))
@@ -222,7 +230,6 @@ func (e *Engine) forceCompaction() {
 
 			e.mainfest.Add(e.mainfest.CreateMinfestRecords(oldFiles[0], nil, mainfest.CompactionOp, int8(level)))
 			e.mainfest.Add(e.mainfest.CreateMinfestRecords(oldFiles[1], newFiles, mainfest.CompactionOp, int8(level+1)))
-
 			e.sstable[level+1] = newSSTables
 			e.sstable[level] = []*sstable.SSTable{}
 		}

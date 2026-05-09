@@ -174,18 +174,25 @@ func intToByte(i uint64) []byte {
 func Compaction(it *MergeIterator, level int8) ([]*SSTable, error) {
 	var entries []memTable.Entry
 	var tables []*SSTable
+
+	cfg := config.DefaultConfig()
+	var currentSize int64 = headerSize
+
 	for it.Next() {
 		if it.currEntry.Tombstoned {
 			continue
 		}
 		entries = append(entries, *it.Value())
-		if len(entries) == 5 { //TODO: change static number with config one
+		currentSize += entrySize
+		bloomBytes := int64(len(entries))
+		if currentSize+bloomBytes >= cfg.SstableFileSizeLimit {
 			sstable, err := sealSSTable(entries, level)
 			if err != nil {
 				return nil, fmt.Errorf("sealSSTable: %w", err)
 			}
 			tables = append(tables, sstable)
 			entries = nil
+			currentSize = headerSize
 		}
 	}
 	if len(entries) != 0 {
@@ -234,4 +241,8 @@ func OpenSStable(filename string) *SSTable {
 	table.readHeader()
 	table.readBloom()
 	return table
+}
+
+func (s *SSTable) Size() int64 {
+	return int64(s.header.BloomOffset + s.header.BloomSize)
 }
