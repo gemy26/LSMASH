@@ -11,6 +11,8 @@ A key-value store built from scratch featuring:
 - Bloom filters for fast lookups
 - Tiered compaction
 
+![](LSM%20Diagram.png)
+
 ## Project Structure
 
 ```
