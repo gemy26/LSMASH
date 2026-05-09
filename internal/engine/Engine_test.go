@@ -282,15 +282,20 @@ func TestEngineWALReplay(t *testing.T) {
 
 func TestEngineDelete(t *testing.T) {
 	e := createTestEngine(t)
-	e.Insert(1, 10)
-	e.Insert(2, 20)
-	e.Delete(1)
-
-	if got := e.Get(1); got != -1 {
-		t.Fatalf("expected deleted key 1: -1, got %d", got)
+	for i := int64(1); i <= 24; i++ {
+		e.Insert(i, i*10)
 	}
-	if got := e.Get(2); got != 20 {
-		t.Fatalf("expected key 2: 20, got %d", got)
+	e.Delete(20)
+	e.Delete(24)
+	e.Delete(10)
+	if got := e.Get(20); got != -1 {
+		t.Fatalf("expected deleted key 20: -1, got %d", got)
+	}
+	if got := e.Get(24); got != -1 {
+		t.Fatalf("expected deleted key 24: -1, got %d", got)
+	}
+	if got := e.Get(10); got != -1 {
+		t.Fatalf("expected deleted key 10: -1, got %d", got)
 	}
 }
 

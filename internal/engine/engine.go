@@ -101,10 +101,17 @@ func (e *Engine) Get(key int64) int64 {
 
 func (e *Engine) Delete(key int64) error {
 	if err := e.wal.Append(&wal.WalRecord{key, 0, wal.OpDelete}); err != nil {
-		log.Fatalf("Insert failed: key=%d err=%v", key, err)
+		log.Fatalf("Delete failed: key=%d err=%v", key, err)
 		return err
 	}
-	e.memtable.SkipList.Delete(key)
+	if e.memtable.SkipList.Delete(key) == true {
+		return nil
+	}
+	for _, list := range e.immutable {
+		if list.SkipList.Delete(key) == true {
+			return nil
+		}
+	}
 	return nil
 }
 

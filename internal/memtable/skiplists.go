@@ -139,7 +139,7 @@ func (s *SkipList) Traverse() {
 	fmt.Println()
 }
 
-func (s *SkipList) Delete(key int64) {
+func (s *SkipList) Delete(key int64) bool {
 	node := s.head
 	for l := s.levels - 1; l >= 0; l-- {
 		for node.next[l] != nil && node.next[l].key < key {
@@ -147,8 +147,10 @@ func (s *SkipList) Delete(key int64) {
 		}
 		if node.next[l] != nil && node.next[l].key == key {
 			node.next[l].val.tombstone = true
+			return true
 		}
 	}
+	return false
 }
 
 func (s *SkipList) Scan(start, end int64) []Entry { //Exculte tombstone
